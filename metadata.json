@@ -1,0 +1,5 @@
+{
+  "name": "Room & Hall Booking",
+  "description": "A Telegram Mini App for booking rooms and halls, featuring an AI assistant.",
+  "requestFramePermissions": []
+}
