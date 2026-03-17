@@ -35,9 +35,7 @@ Tarikh: ${date}
 Tempahan semasa:
 ${JSON.stringify(bookings)}
 
-Jawab dalam Bahasa Melayu secara ringkas dan jelas.
-Jika bilik penuh, beritahu.
-Jika ada bilik kosong, senaraikan.
+Jawab dalam Bahasa Melayu secara ringkas.
 `
         },
         {
@@ -52,14 +50,13 @@ Jika ada bilik kosong, senaraikan.
 
     return res.status(200).json({ reply });
 
-  } 
-  
-  catch (error) {
+  } catch (error) {
 
-  console.error("AI ERROR:", error);
+    console.error("AI ERROR:", error);
 
-  return res.status(500).json({
-    error: error.message || "Unknown error"
-  });
+    return res.status(500).json({
+      error: error.message || "AI error"
+    });
 
+  }
 }
