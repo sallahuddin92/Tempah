@@ -142,7 +142,8 @@ export default function App() {
       date: format(currentDate, 'yyyy-MM-dd'),
       hour: selectedHour,
       reason: formData.get('reason'),
-      teacher_name: formData.get('teacher_name')
+      teacher_name: formData.get('teacher_name'),
+      telegram_id: userId
     };
 
     try {
