@@ -143,6 +143,7 @@ export default function App() {
       hour: selectedHour,
       reason: formData.get('reason'),
       teacher_name: formData.get('teacher_name'),
+      kelas: formData.get('kelas'),
       telegram_id: userId
     };
 
@@ -611,6 +612,20 @@ export default function App() {
                         name="teacher_name"
                         required
                         placeholder="Cth., Cikgu Ahmad"
+                        className="w-full bg-tg-secondary-bg border border-tg-hint/20 rounded-xl px-4 py-2.5 text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-tg-hint mb-1 uppercase tracking-wider">
+                        Kelas
+                      </label>
+                    
+                      <input 
+                        type="text" 
+                        name="kelas"
+                        required
+                        placeholder="Cth., 5 Amanah"
                         className="w-full bg-tg-secondary-bg border border-tg-hint/20 rounded-xl px-4 py-2.5 text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button"
                       />
                     </div>
