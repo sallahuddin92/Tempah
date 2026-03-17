@@ -116,12 +116,21 @@ export default async function handler(req, res) {
     // 🔥 AUTO BOOKING
     // =========================
 
-    await sql`
+    const result = await sql`
       INSERT INTO bookings
       (room_name, booking_date, booking_hour, user_name, reason, teacher_name, kelas)
       VALUES
       (${memory.room}, ${date}, ${memory.hour}, ${user_name}, 'Tempah melalui AI', ${teacher_name}, ${kelas})
+      RETURNING *
     `;
+    
+    console.log("INSERT RESULT:", result);
+    
+    if (!result || result.length === 0) {
+      return res.status(500).json({
+        reply: "❌ Gagal simpan ke database"
+      });
+    }
 
     // 🔹 CLEAR MEMORY selepas booking
     userMemory[telegram_id] = {};
