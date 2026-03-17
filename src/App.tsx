@@ -247,6 +247,8 @@ export default function App() {
 
     const userMsg = chatInput;
     setChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    // 🔥 FORCE REFRESH DATA
+    window.dispatchEvent(new Event('bookings_changed'));
     setChatInput('');
     setIsAiTyping(true);
 
