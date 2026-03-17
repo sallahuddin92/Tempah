@@ -9,11 +9,17 @@ export default async function handler(req, res) {
 
   try {
 
-    const { message, date, user_name = "Guest", teacher_name = "Unknown", kelas = "N/A", telegram_id } = req.body;
+    const {
+      message,
+      date,
+      user_name = "Guest",
+      teacher_name = "Unknown",
+      kelas = "N/A",
+      telegram_id
+    } = req.body;
 
     const sql = neon(process.env.DATABASE_URL);
 
-    // 🔹 ALL ROOMS
     const allRooms = [
       "Perpustakaan",
       "Bilik Tayang",
@@ -21,7 +27,6 @@ export default async function handler(req, res) {
       "Bilik Mesyuarat 2"
     ];
 
-    // 🔹 ALL HOURS (adjust ikut system kau)
     const allHours = [8,9,10,11,12,13,14,15];
 
     // 🔹 GET BOOKINGS
@@ -31,39 +36,87 @@ export default async function handler(req, res) {
       WHERE booking_date = ${date}
     `;
 
-    // 🔹 PARSE MESSAGE (simple intent detection)
-    const lowerMsg = message.toLowerCase();
+    // =========================
+    // 🔥 BM PARSER (SMART)
+    // =========================
+    const lower = message.toLowerCase();
 
-    let detectedRoom = allRooms.find(r => lowerMsg.includes(r.toLowerCase()));
-    let detectedHour = allHours.find(h => lowerMsg.includes(h.toString()));
+    // 🔹 ROOM DETECTION (fuzzy)
+    let detectedRoom = null;
 
-    // 🔹 FILTER ROOM BOOKINGS
-    const roomBookings = detectedRoom
-      ? bookings.filter(b => b.room_name === detectedRoom)
-      : [];
+    if (lower.includes("tayang")) detectedRoom = "Bilik Tayang";
+    else if (lower.includes("perpustakaan")) detectedRoom = "Perpustakaan";
+    else if (lower.includes("bahasa")) detectedRoom = "Makmal Bahasa";
+    else if (lower.includes("mesyuarat")) detectedRoom = "Bilik Mesyuarat 2";
 
-    const bookedHours = roomBookings.map(b => b.booking_hour);
-    const freeHours = allHours.filter(h => !bookedHours.includes(h));
+    // 🔹 HOUR DETECTION (BM)
+    let detectedHour = null;
 
-    // 🔥 AUTO BOOKING LOGIC
-    if (lowerMsg.includes("tempah") && detectedRoom && detectedHour !== undefined) {
+    const hourMatch = lower.match(/(\d{1,2})/);
+    if (hourMatch) {
+      let h = parseInt(hourMatch[1]);
 
-      // check availability
-      const exists = await sql`
-        SELECT * FROM bookings
-        WHERE room_name = ${detectedRoom}
-        AND booking_date = ${date}
-        AND booking_hour = ${detectedHour}
-        LIMIT 1
-      `;
+      if (lower.includes("petang") && h < 12) h += 12;
+      if (lower.includes("malam") && h < 12) h += 12;
 
-      if (exists.length > 0) {
+      detectedHour = h;
+    }
+
+    // =========================
+    // 🔥 AUTO LOGIC
+    // =========================
+
+    // 🔹 GROUP bookings by room
+    const roomMap = {};
+
+    bookings.forEach(b => {
+      if (!roomMap[b.room_name]) {
+        roomMap[b.room_name] = [];
+      }
+      roomMap[b.room_name].push(b.booking_hour);
+    });
+
+    // 🔹 find available rooms
+    const availableRooms = allRooms.filter(r => {
+      const booked = roomMap[r] || [];
+      return booked.length < allHours.length;
+    });
+
+    // =========================
+    // 🔥 AUTO BOOKING FLOW
+    // =========================
+
+    if (lower.includes("tempah")) {
+
+      // 🔹 kalau user tak bagi bilik → auto suggest
+      if (!detectedRoom) {
         return res.json({
-          reply: `❌ Slot ${detectedHour}:00 untuk ${detectedRoom} sudah ditempah oleh ${exists[0].user_name}`
+          reply: `Bilik yang tersedia: ${availableRooms.join(", ")}. Sila pilih bilik.`
         });
       }
 
-      // insert booking
+      const bookedHours = roomMap[detectedRoom] || [];
+      const freeHours = allHours.filter(h => !bookedHours.includes(h));
+
+      // 🔹 kalau tak bagi masa → auto pilih terbaik
+      if (detectedHour === null) {
+        if (freeHours.length === 0) {
+          return res.json({
+            reply: `❌ ${detectedRoom} sudah penuh hari ini.`
+          });
+        }
+
+        detectedHour = freeHours[0];
+      }
+
+      // 🔹 check slot
+      if (bookedHours.includes(detectedHour)) {
+        return res.json({
+          reply: `❌ Slot ${detectedHour}:00 untuk ${detectedRoom} sudah ditempah.`
+        });
+      }
+
+      // 🔹 INSERT
       await sql`
         INSERT INTO bookings
         (room_name, booking_date, booking_hour, user_name, reason, teacher_name, kelas)
@@ -71,26 +124,22 @@ export default async function handler(req, res) {
         (${detectedRoom}, ${date}, ${detectedHour}, ${user_name}, 'Tempah melalui AI', ${teacher_name}, ${kelas})
       `;
 
-      // 🔹 OPTIONAL TELEGRAM
+      // 🔥 TELEGRAM CONFIRM
       if (telegram_id) {
-        try {
-          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: telegram_id,
-              text: `✅ Tempahan berjaya
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: telegram_id,
+            text: `✅ Tempahan berjaya
 
 Bilik: ${detectedRoom}
 Tarikh: ${date}
 Masa: ${detectedHour}:00
 Guru: ${teacher_name}
 Kelas: ${kelas}`
-            })
-          });
-        } catch (e) {
-          console.log("Telegram error:", e);
-        }
+          })
+        });
       }
 
       return res.json({
@@ -101,7 +150,10 @@ Masa: ${detectedHour}:00`
       });
     }
 
-    // 🔥 NORMAL AI RESPONSE
+    // =========================
+    // 🔥 AI RESPONSE MODE
+    // =========================
+
     const groq = new Groq({
       apiKey: process.env.GROQ_API_KEY,
     });
@@ -118,18 +170,10 @@ Masa: ${detectedHour}:00`
           content: `
 Anda pembantu sistem tempahan bilik.
 
-Tarikh: ${date}
-
-Senarai tempahan:
+Data tempahan:
 ${bookingSummary}
 
-Semua bilik:
-${JSON.stringify(allRooms)}
-
-Arahan:
-- Jika user tanya bilik kosong → jawab berdasarkan data
-- Jika tanya masa → gunakan booking_hour
-- Jawab ringkas dalam Bahasa Melayu
+Jawab dalam Bahasa Melayu.
 `
         },
         {
@@ -140,16 +184,16 @@ Arahan:
       temperature: 0.3,
     });
 
-    const reply = completion.choices[0]?.message?.content || "Tiada jawapan";
-
-    return res.json({ reply });
+    return res.json({
+      reply: completion.choices[0]?.message?.content
+    });
 
   } catch (error) {
 
-    console.error("AI ERROR:", error);
+    console.error(error);
 
     return res.status(500).json({
-      error: error.message || "Server error"
+      error: "Server error"
     });
 
   }
