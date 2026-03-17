@@ -3,19 +3,21 @@ import { neon } from "@neondatabase/serverless";
 export default async function handler(req, res) {
 
   if (req.method !== "POST") {
-    return res.status(405).end();
-  }
-
-  const { room_name, date, hour, user_name, reason, teacher_name } = req.body;
-
-  if (!room_name || !date || hour === undefined || !user_name || !reason) {
-    return res.status(400).json({ error: "Maklumat tidak lengkap." });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
 
     const sql = neon(process.env.DATABASE_URL);
 
+    const { room_name, date, hour, user_name, reason, teacher_name } = req.body;
+
+    // VALIDATION
+    if (!room_name || !date || hour === undefined || !user_name || !reason || !teacher_name) {
+      return res.status(400).json({ error: "Maklumat tidak lengkap." });
+    }
+
+    // CHECK IF SLOT ALREADY BOOKED
     const existing = await sql`
       SELECT * FROM bookings
       WHERE room_name = ${room_name}
@@ -30,20 +32,25 @@ export default async function handler(req, res) {
       });
     }
 
+    // INSERT BOOKING
     await sql`
       INSERT INTO bookings
-      (room_name, booking_date, booking_hour, user_name, reason)
+      (room_name, booking_date, booking_hour, user_name, reason, teacher_name)
       VALUES
-      (${room_name}, ${date}, ${hour}, ${user_name}, ${reason})
+      (${room_name}, ${date}, ${hour}, ${user_name}, ${reason}, ${teacher_name})
     `;
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true
     });
 
   } catch (error) {
 
-    res.status(500).json({ error: error.message });
+    console.error(error);
+
+    return res.status(500).json({
+      error: "Server error"
+    });
 
   }
 
