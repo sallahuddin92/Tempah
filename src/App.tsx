@@ -141,7 +141,8 @@ export default function App() {
       user_name: userName,
       date: format(currentDate, 'yyyy-MM-dd'),
       hour: selectedHour,
-      reason: formData.get('reason')
+      reason: formData.get('reason'),
+      teacher_name: formData.get('teacher_name')
     };
 
     try {
@@ -159,7 +160,7 @@ export default function App() {
         
         const timeSlot = `${formatHour(selectedHour)} - ${formatHour(selectedHour + 30)}`;
         const formattedDate = format(currentDate, 'dd/MM/yyyy');
-        const payload = `Hi ${userName}~ Tempahan anda telah berjaya! Bilik: ${selectedRoom.name}. Sesi: ${timeSlot}. Sebab: ${bookingData.reason}.`;
+        const payload = `Hi ${userName}~ Tempahan anda telah berjaya! Bilik: ${selectedRoom.name}. Sesi: ${timeSlot}. Sebab: ${bookingData.reason}. Guru: ${bookingData.teacher_name}.`;
         
         if (tg.isVersionAtLeast && tg.isVersionAtLeast('6.2') && tg.showPopup) {
           tg.showPopup({
@@ -595,6 +596,20 @@ export default function App() {
                         name="reason"
                         required
                         placeholder="Cth., Mesyuarat Panitia"
+                        className="w-full bg-tg-secondary-bg border border-tg-hint/20 rounded-xl px-4 py-2.5 text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button"
+                      />
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="block text-xs font-medium text-tg-hint mb-1 uppercase tracking-wider">
+                        Nama Guru
+                      </label>
+                    
+                      <input 
+                        type="text" 
+                        name="teacher_name"
+                        required
+                        placeholder="Cth., Cikgu Ahmad"
                         className="w-full bg-tg-secondary-bg border border-tg-hint/20 rounded-xl px-4 py-2.5 text-tg-text focus:outline-none focus:ring-2 focus:ring-tg-button"
                       />
                     </div>
