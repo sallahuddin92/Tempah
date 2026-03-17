@@ -10,10 +10,10 @@ export default async function handler(req, res) {
 
     const sql = neon(process.env.DATABASE_URL);
 
-    const { room_name, date, hour, user_name, reason, teacher_name, telegram_id } = req.body;
+    const { room_name, date, hour, user_name, reason, teacher_name, kelas, telegram_id } = req.body;
 
     // VALIDATION
-    if (!room_name || !date || hour === undefined || !user_name || !reason || !teacher_name) {
+    if (!room_name || !date || hour === undefined || !user_name || !reason || !teacher_name || !kelas) {
       return res.status(400).json({ error: "Maklumat tidak lengkap." });
     }
 
@@ -35,9 +35,9 @@ export default async function handler(req, res) {
     // INSERT BOOKING
     await sql`
       INSERT INTO bookings
-      (room_name, booking_date, booking_hour, user_name, reason, teacher_name)
+      (room_name, booking_date, booking_hour, user_name, reason, teacher_name, kelas)
       VALUES
-      (${room_name}, ${date}, ${hour}, ${user_name}, ${reason}, ${teacher_name})
+      (${room_name}, ${date}, ${hour}, ${user_name}, ${reason}, ${teacher_name}, ${kelas})
     `;
 
     // FORMAT TIME
@@ -59,6 +59,7 @@ Bilik Tempahan: ${room_name.toUpperCase()}
 Tarikh Tempahan: ${date}
 Sesi Tempahan: ${timeSlot}
 Guru: ${teacher_name}
+Kelas: ${kelas}
 Aktiviti: ${reason}
 `;
 
