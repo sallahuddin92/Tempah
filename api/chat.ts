@@ -52,13 +52,14 @@ Jika ada bilik kosong, senaraikan.
 
     return res.status(200).json({ reply });
 
-  } catch (error) {
+  } 
+  
+  catch (error) {
 
-    console.error(error);
+  console.error("AI ERROR:", error);
 
-    return res.status(500).json({
-      error: "AI error"
-    });
+  return res.status(500).json({
+    error: error.message || "Unknown error"
+  });
 
-  }
 }
