@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     return res.status(405).end();
   }
 
-  const { room_name, date, hour, user_name, reason } = req.body;
+  const { room_name, date, hour, user_name, reason, teacher_name } = req.body;
 
   if (!room_name || !date || hour === undefined || !user_name || !reason) {
     return res.status(400).json({ error: "Maklumat tidak lengkap." });
