@@ -10,14 +10,14 @@ export default async function handler(req, res) {
 
     const sql = neon(process.env.DATABASE_URL);
 
-    const { room_name, date, hour, user_name, reason, teacher_name } = req.body;
+    const { room_name, date, hour, user_name, reason, teacher_name, telegram_id } = req.body;
 
     // VALIDATION
     if (!room_name || !date || hour === undefined || !user_name || !reason || !teacher_name) {
       return res.status(400).json({ error: "Maklumat tidak lengkap." });
     }
 
-    // CHECK IF SLOT ALREADY BOOKED
+    // CHECK SLOT
     const existing = await sql`
       SELECT * FROM bookings
       WHERE room_name = ${room_name}
@@ -40,6 +40,32 @@ export default async function handler(req, res) {
       (${room_name}, ${date}, ${hour}, ${user_name}, ${reason}, ${teacher_name})
     `;
 
+    // FORMAT TIME
+    const startH = Math.floor(hour / 60);
+    const startM = hour % 60;
+    const endH = Math.floor((hour + 30) / 60);
+    const endM = (hour + 30) % 60;
+
+    const timeSlot = `${startH}:${startM.toString().padStart(2,"0")} - ${endH}:${endM.toString().padStart(2,"0")}`;
+
+    // TELEGRAM MESSAGE
+    if (telegram_id) {
+
+      const message = `Hi ${user_name}~
+
+Tempahan berjaya dibuat
+
+Bilik Tempahan: ${room_name.toUpperCase()}
+Tarikh Tempahan: ${date}
+Sesi Tempahan: ${timeSlot}
+Guru: ${teacher_name}
+Aktiviti: ${reason}
+`;
+
+      await sendTelegramMessage(telegram_id, message);
+
+    }
+
     return res.status(200).json({
       success: true
     });
@@ -53,6 +79,10 @@ export default async function handler(req, res) {
     });
 
   }
+}
+
+
+// TELEGRAM FUNCTION
 async function sendTelegramMessage(chatId, text) {
 
   const token = process.env.TELEGRAM_BOT_TOKEN;
