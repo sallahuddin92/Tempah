@@ -115,7 +115,8 @@ export default async function handler(req, res) {
     // =========================
     // 🔥 AUTO BOOKING
     // =========================
-
+    console.log("BOOKING DATA:", memory.room, memory.hour, date);
+    
     const result = await sql`
       INSERT INTO bookings
       (room_name, booking_date, booking_hour, user_name, reason, teacher_name, kelas)
