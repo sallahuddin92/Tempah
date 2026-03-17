@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
 import { neon } from "@neondatabase/serverless";
 
 export default async function handler(req, res) {
@@ -18,39 +18,47 @@ export default async function handler(req, res) {
       WHERE booking_date = ${date}
     `;
 
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
     });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: message,
-      config: {
-        systemInstruction: `
-Anda pembantu sistem tempahan bilik.
+    const completion = await groq.chat.completions.create({
+      model: "llama3-8b-8192",
+      messages: [
+        {
+          role: "system",
+          content: `
+Anda pembantu sistem tempahan bilik sekolah.
 
 Tarikh: ${date}
 
 Tempahan semasa:
 ${JSON.stringify(bookings)}
 
-Jawab ringkas dalam Bahasa Melayu.
+Jawab dalam Bahasa Melayu secara ringkas dan jelas.
+Jika bilik penuh, beritahu.
+Jika ada bilik kosong, senaraikan.
 `
-      }
+        },
+        {
+          role: "user",
+          content: message
+        }
+      ],
+      temperature: 0.3,
     });
 
-    res.json({
-      reply: response.text
-    });
+    const reply = completion.choices[0]?.message?.content || "Tiada jawapan";
+
+    return res.status(200).json({ reply });
 
   } catch (error) {
 
     console.error(error);
 
-    res.status(500).json({
-      error: error.message
+    return res.status(500).json({
+      error: "AI error"
     });
 
   }
-
 }
