@@ -3,6 +3,10 @@ import { neon } from "@neondatabase/serverless";
 
 export default async function handler(req, res) {
 
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "POST required" });
+  }
+
   try {
 
     const { message, date } = req.body;
@@ -19,7 +23,7 @@ export default async function handler(req, res) {
     });
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: message,
       config: {
         systemInstruction: `
