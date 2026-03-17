@@ -143,8 +143,10 @@ export default async function handler(req, res) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            chat_id: telegram_id,
-            text: `✅ Tempahan berjaya
+            message: userMsg,
+            date: format(currentDate, 'yyyy-MM-dd'),
+            telegram_id: userId
+          })
 
 Bilik: ${memory.room}
 Tarikh: ${date}
