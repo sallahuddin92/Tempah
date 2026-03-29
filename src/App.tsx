@@ -258,7 +258,9 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: userMsg,
-          date: format(currentDate, 'yyyy-MM-dd')
+          date: format(currentDate, 'yyyy-MM-dd'),
+          telegram_id: userId,
+          user_name: userName
         })
       });
       
