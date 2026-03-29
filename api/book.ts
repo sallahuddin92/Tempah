@@ -48,11 +48,14 @@ export default async function handler(req, res) {
 
     const timeSlot = `${startH}:${startM.toString().padStart(2,"0")} - ${endH}:${endM.toString().padStart(2,"0")}`;
 
-    // TELEGRAM MESSAGE
-    if (telegram_id) {
+    // TELEGRAM MESSAGES
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const groupChatId = process.env.TELEGRAM_CHAT_ID;
 
-      const message = `Hi ${user_name}~
-
+    if (token) {
+      
+      const personalMsg = `Hi ${user_name}~
+  
 Tempahan berjaya dibuat
 
 Bilik Tempahan: ${room_name.toUpperCase()}
@@ -63,7 +66,49 @@ Kelas: ${kelas}
 Aktiviti: ${reason}
 `;
 
-      await sendTelegramMessage(telegram_id, message);
+      const groupMsg = `🔔 *TEMPAHAN BARU*
+
+👤 *Pempah:* ${user_name}
+🏢 *Bilik:* ${room_name.toUpperCase()}
+📅 *Tarikh:* ${date}
+⏰ *Masa:* ${timeSlot}
+👨‍🏫 *Guru:* ${teacher_name}
+🏫 *Kelas:* ${kelas}
+📝 *Aktiviti:* ${reason}
+`;
+
+      // Helper for async Telegram calls
+      const sendAction = async (chatId, text, isMarkdown = false) => {
+        try {
+          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: text,
+              parse_mode: isMarkdown ? "Markdown" : undefined
+            })
+          });
+        } catch (err) {
+          console.error(`Telegram failed for ${chatId}:`, err);
+        }
+      };
+
+      const tasks = [];
+      
+      // 1. Send to booker
+      if (telegram_id) {
+        tasks.push(sendAction(telegram_id, personalMsg));
+      }
+
+      // 2. Send to Shared Group
+      if (groupChatId) {
+        tasks.push(sendAction(groupChatId, groupMsg, true));
+      }
+
+      // Run all notifications, but don't block the main response too long
+      // We use Promise.allSettled to ensure they all run independently
+      await Promise.allSettled(tasks);
 
     }
 
@@ -80,23 +125,4 @@ Aktiviti: ${reason}
     });
 
   }
-}
-
-
-// TELEGRAM FUNCTION
-async function sendTelegramMessage(chatId, text) {
-
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: text
-    })
-  });
-
 }

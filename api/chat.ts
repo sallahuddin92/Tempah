@@ -136,28 +136,56 @@ export default async function handler(req, res) {
     // 🔹 CLEAR MEMORY selepas booking
     userMemory[telegram_id] = {};
 
-    // 🔹 TELEGRAM CONFIRM
-    if (telegram_id !== "default_user") {
-      try {
-        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: userMsg,
-            date: format(currentDate, 'yyyy-MM-dd'),
-            telegram_id: userId
-          })
+    // 🔹 TELEGRAM NOTIFICATIONS
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const groupChatId = process.env.TELEGRAM_CHAT_ID;
+
+    if (token) {
+      const timeSlot = `${memory.hour}:00 - ${memory.hour}:30`;
+      
+      const personalMsg = `✅ Tempahan berjaya (via AI)!
 
 Bilik: ${memory.room}
 Tarikh: ${date}
-Masa: ${memory.hour}:00
+Masa: ${timeSlot}
 Guru: ${teacher_name}
-Kelas: ${kelas}`
-          })
-        });
-      } catch (e) {
-        console.log("Telegram error:", e);
+Kelas: ${kelas}`;
+
+      const groupMsg = `🤖 *TEMPAHAN AI BARU*
+
+👤 *Pempah:* ${user_name}
+🏢 *Bilik:* ${memory.room.toUpperCase()}
+📅 *Tarikh:* ${date}
+⏰ *Masa:* ${timeSlot}
+👨‍🏫 *Guru:* ${teacher_name}
+🏫 *Kelas:* ${kelas}
+📝 *Aktiviti:* Tempah melalui AI`;
+
+      const sendAction = async (chatId, text, isMarkdown = false) => {
+        try {
+          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: text,
+              parse_mode: isMarkdown ? "Markdown" : undefined
+            })
+          });
+        } catch (e) {
+          console.error(`Telegram AI notification error for ${chatId}:`, e);
+        }
+      };
+
+      const tasks = [];
+      if (telegram_id && telegram_id !== "default_user") {
+        tasks.push(sendAction(telegram_id, personalMsg));
       }
+      if (groupChatId) {
+        tasks.push(sendAction(groupChatId, groupMsg, true));
+      }
+
+      await Promise.allSettled(tasks);
     }
 
     return res.json({
