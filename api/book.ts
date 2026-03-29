@@ -48,12 +48,28 @@ export default async function handler(req, res) {
 
     const timeSlot = `${startH}:${startM.toString().padStart(2,"0")} - ${endH}:${endM.toString().padStart(2,"0")}`;
 
-    // TELEGRAM MESSAGES
+    // TELEGRAM LOGIC
     const token = process.env.TELEGRAM_BOT_TOKEN;
-    const groupChatId = process.env.TELEGRAM_CHAT_ID;
 
     if (token) {
       
+      // 1. Register/Update Current User in 'telegram_users'
+      if (telegram_id) {
+        try {
+          await sql`
+            INSERT INTO telegram_users (telegram_id, user_name)
+            VALUES (${telegram_id}, ${user_name})
+            ON CONFLICT (telegram_id) 
+            DO UPDATE SET 
+              user_name = EXCLUDED.user_name,
+              last_active = NOW()
+          `;
+        } catch (e) {
+          console.error("User registration error:", e);
+        }
+      }
+
+      // 2. Prepare Messages
       const personalMsg = `Hi ${user_name}~
   
 Tempahan berjaya dibuat
@@ -66,7 +82,7 @@ Kelas: ${kelas}
 Aktiviti: ${reason}
 `;
 
-      const groupMsg = `🔔 *TEMPAHAN BARU*
+      const broadcastMsg = `🔔 *TEMPAHAN BARU*
 
 👤 *Pempah:* ${user_name}
 🏢 *Bilik:* ${room_name.toUpperCase()}
@@ -96,20 +112,29 @@ Aktiviti: ${reason}
 
       const tasks = [];
       
-      // 1. Send to booker
+      // 3. Send Personal Confirmation
       if (telegram_id) {
         tasks.push(sendAction(telegram_id, personalMsg));
       }
 
-      // 2. Send to Shared Group
-      if (groupChatId) {
-        tasks.push(sendAction(groupChatId, groupMsg, true));
+      // 4. Broadcast to ALL Registered Users
+      try {
+        const recipients = await sql`SELECT telegram_id FROM telegram_users`;
+        
+        recipients.forEach((u: any) => {
+          // Send broadcast to all users except perhaps the booker? 
+          // Actually, let's just send to everyone so they see the notification.
+          // But to avoid duplicate pings for the booker, we can skip them if we want.
+          if (u.telegram_id !== telegram_id) {
+            tasks.push(sendAction(u.telegram_id, broadcastMsg, true));
+          }
+        });
+      } catch (e) {
+        console.error("Broadcast fetch error:", e);
       }
 
-      // Run all notifications, but don't block the main response too long
-      // We use Promise.allSettled to ensure they all run independently
+      // Run all notifications independently
       await Promise.allSettled(tasks);
-
     }
 
     return res.status(200).json({

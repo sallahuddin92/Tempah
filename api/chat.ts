@@ -136,11 +136,27 @@ export default async function handler(req, res) {
     // 🔹 CLEAR MEMORY selepas booking
     userMemory[telegram_id] = {};
 
-    // 🔹 TELEGRAM NOTIFICATIONS
+    // 🔹 TELEGRAM LOGIC
     const token = process.env.TELEGRAM_BOT_TOKEN;
-    const groupChatId = process.env.TELEGRAM_CHAT_ID;
 
     if (token) {
+      
+      // 1. Register/Update current user
+      if (telegram_id && telegram_id !== "default_user") {
+        try {
+          await sql`
+            INSERT INTO telegram_users (telegram_id, user_name)
+            VALUES (${telegram_id}, ${user_name})
+            ON CONFLICT (telegram_id) 
+            DO UPDATE SET 
+              user_name = EXCLUDED.user_name,
+              last_active = NOW()
+          `;
+        } catch (e) {
+          console.error("User registration error (AI):", e);
+        }
+      }
+
       const timeSlot = `${memory.hour}:00 - ${memory.hour}:30`;
       
       const personalMsg = `✅ Tempahan berjaya (via AI)!
@@ -151,7 +167,7 @@ Masa: ${timeSlot}
 Guru: ${teacher_name}
 Kelas: ${kelas}`;
 
-      const groupMsg = `🤖 *TEMPAHAN AI BARU*
+      const broadcastMsg = `🤖 *TEMPAHAN AI BARU*
 
 👤 *Pempah:* ${user_name}
 🏢 *Bilik:* ${memory.room.toUpperCase()}
@@ -173,16 +189,27 @@ Kelas: ${kelas}`;
             })
           });
         } catch (e) {
-          console.error(`Telegram AI notification error for ${chatId}:`, e);
+          console.error(`Telegram AI broadcast error for ${chatId}:`, e);
         }
       };
 
       const tasks = [];
+      
+      // 2. Personal Confirmation
       if (telegram_id && telegram_id !== "default_user") {
         tasks.push(sendAction(telegram_id, personalMsg));
       }
-      if (groupChatId) {
-        tasks.push(sendAction(groupChatId, groupMsg, true));
+
+      // 3. Broadcast to ALL
+      try {
+        const recipients = await sql`SELECT telegram_id FROM telegram_users`;
+        recipients.forEach((u: any) => {
+          if (u.telegram_id !== telegram_id) {
+            tasks.push(sendAction(u.telegram_id, broadcastMsg, true));
+          }
+        });
+      } catch (e) {
+        console.error("Broadcast fetch error (AI):", e);
       }
 
       await Promise.allSettled(tasks);
