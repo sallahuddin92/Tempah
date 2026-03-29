@@ -288,6 +288,12 @@ Kelas: ${kelas}`;
         console.error("Broadcast fetch error (AI):", e);
       }
 
+      // 4. Send to Shared Group (New)
+      const groupChatId = process.env.TELEGRAM_CHAT_ID;
+      if (groupChatId) {
+        tasks.push(sendAction(groupChatId, broadcastMsg, true));
+      }
+
       await Promise.allSettled(tasks);
     }
 

@@ -122,15 +122,18 @@ Aktiviti: ${reason}
         const recipients = await sql`SELECT telegram_id FROM telegram_users`;
         
         recipients.forEach((u: any) => {
-          // Send broadcast to all users except perhaps the booker? 
-          // Actually, let's just send to everyone so they see the notification.
-          // But to avoid duplicate pings for the booker, we can skip them if we want.
           if (u.telegram_id !== telegram_id) {
             tasks.push(sendAction(u.telegram_id, broadcastMsg, true));
           }
         });
       } catch (e) {
         console.error("Broadcast fetch error:", e);
+      }
+
+      // 5. Send to Shared Group (New)
+      const groupChatId = process.env.TELEGRAM_CHAT_ID;
+      if (groupChatId) {
+        tasks.push(sendAction(groupChatId, broadcastMsg, true));
       }
 
       // Run all notifications independently
