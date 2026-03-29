@@ -1,4 +1,3 @@
-import Groq from "groq-sdk";
 import { neon } from "@neondatabase/serverless";
 
 // 🔥 MEMORY STORE (simple)
@@ -21,7 +20,54 @@ export default async function handler(req, res) {
       telegram_id = "default_user"
     } = req.body;
 
-    const sql = neon(process.env.DATABASE_URL);
+    const sql = neon(process.env.DATABASE_URL!);
+    const lower = message.toLowerCase();
+
+    // ==========================================
+    // 👑 BOT OWNER SUMMARY
+    // ==========================================
+    if (telegram_id === process.env.BOT_OWNER_ID && (lower.includes("/summary") || lower.includes("ringkasan") || lower.includes("summary"))) {
+      
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      const dateStr = startOfMonth.toISOString().split('T')[0];
+
+      const stats = await sql`
+        SELECT 
+          room_name, 
+          COUNT(*) as count
+        FROM bookings
+        WHERE booking_date >= ${dateStr}
+        GROUP BY room_name
+        ORDER BY count DESC
+      `;
+
+      const topTeacher = await sql`
+        SELECT 
+          teacher_name, 
+          COUNT(*) as count
+        FROM bookings
+        WHERE booking_date >= ${dateStr}
+        GROUP BY teacher_name
+        ORDER BY count DESC
+        LIMIT 1
+      `;
+
+      const total = stats.reduce((acc, curr) => acc + Number(curr.count), 0);
+
+      let summary = `📊 *RINGKASAN TEMPAHAN BULAN INI*\n\n`;
+      summary += `📈 *Jumlah Tempahan:* ${total}\n\n`;
+      summary += `🏢 *Pecahan Bilik:*\n`;
+      stats.forEach(s => {
+        summary += `- ${s.room_name}: ${s.count}\n`;
+      });
+      
+      if (topTeacher.length > 0) {
+        summary += `\n🏆 *Guru Paling Aktif:* ${topTeacher[0].teacher_name} (${topTeacher[0].count} tempahan)`;
+      }
+
+      return res.json({ reply: summary });
+    }
 
     // =========================
     // 🔥 INIT MEMORY
@@ -31,8 +77,6 @@ export default async function handler(req, res) {
     }
 
     const memory = userMemory[telegram_id];
-
-    const lower = message.toLowerCase();
 
     const allRooms = [
       "Perpustakaan",
@@ -84,6 +128,38 @@ export default async function handler(req, res) {
       const booked = roomMap[r] || [];
       return booked.length < allHours.length;
     });
+
+    // ==========================================
+    // 🤖 LONGCAT AI FALLBACK (General Chat)
+    // ==========================================
+    if (!memory.room && !lower.includes("tempah") && !lower.includes("bilik")) {
+      try {
+        const response = await fetch("https://api.longcat.chat/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.LONGCAT_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "LongCat-Flash-Lite",
+            messages: [
+              { role: "system", content: `You are a helpful assistant for a room booking system. 
+                Available rooms: ${allRooms.join(", ")}. 
+                Available sessions: 8am - 4pm.
+                Current bookings today: ${JSON.stringify(bookings)}.
+                Reply in Bahasa Melayu only. Keep it short.` },
+              { role: "user", content: message }
+            ]
+          })
+        });
+        const data = await response.json();
+        if (data.choices && data.choices[0]) {
+          return res.json({ reply: data.choices[0].message.content });
+        }
+      } catch (e) {
+        console.error("LongCat AI error:", e);
+      }
+    }
 
     // =========================
     // 🔥 MULTI-TURN FLOW
