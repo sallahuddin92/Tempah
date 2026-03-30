@@ -84,7 +84,7 @@ Aktiviti: ${reason}
 
       const broadcastMsg = `🔔 *TEMPAHAN BARU*
 
-👤 *Pempah:* ${user_name}
+👤 *Penempah:* ${user_name}
 🏢 *Bilik:* ${room_name.toUpperCase()}
 📅 *Tarikh:* ${date}
 ⏰ *Masa:* ${timeSlot}

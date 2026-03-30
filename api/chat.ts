@@ -245,7 +245,7 @@ Kelas: ${kelas}`;
 
       const broadcastMsg = `🤖 *TEMPAHAN AI BARU*
 
-👤 *Pempah:* ${user_name}
+👤 *Penempah:* ${user_name}
 🏢 *Bilik:* ${memory.room.toUpperCase()}
 📅 *Tarikh:* ${date}
 ⏰ *Masa:* ${timeSlot}
